@@ -1,0 +1,39 @@
+# Build results
+bin/
+obj/
+
+# Visual Studio files
+.vs/
+*.user
+*.suo
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build process
+[Bb]in/
+[Oo]bj/
+
+# Mac
+.DS_Store
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.classpath
+.project
+.settings/
+.idea/
+*.iml
+*.iws
+
+# log files
+*.log
+*.zip

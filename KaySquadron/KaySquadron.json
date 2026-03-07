@@ -1,0 +1,24 @@
+{
+    "Author": "Kaynoss",
+    "Name": "KaySquadron",
+    "InternalName": "KaySquadron",
+    "AssemblyVersion": "1.0.0.0",
+    "Description": "Optimiseur d'escouade de Grande Compagnie (GC). Calculateur d'attributs, success chances et recommandations d'entraînement.",
+    "ApplicableRegions": [
+        "CN",
+        "KR",
+        "Global"
+    ],
+    "Tags": [
+        "squadron",
+        "utility",
+        "optimization"
+    ],
+    "DalamudApiLevel": 14,
+    "LoadRequiredState": 0,
+    "LoadSync": false,
+    "CanUnloadAsync": false,
+    "SupportsConfig": true,
+    "IconUrl": "https://raw.githubusercontent.com/Kaynoss/KaySquadron/main/icon.png",
+    "Punchline": "Faites de vos recrues une unité d'élite."
+}

@@ -1,0 +1,433 @@
+using Dalamud.Interface.Windowing;
+using ImGui = Dalamud.Bindings.ImGui.ImGui;
+using ImGuiCond = Dalamud.Bindings.ImGui.ImGuiCond;
+using ImGuiCol = Dalamud.Bindings.ImGui.ImGuiCol;
+using ImGuiStyleVar = Dalamud.Bindings.ImGui.ImGuiStyleVar;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
+using System.Runtime.InteropServices;
+using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+using FFXIVClientStructs.FFXIV.Component.GUI;
+using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.Game.UI;
+
+namespace KaySquadron
+{
+    // Keeping this layout just in case, but will try to use library types
+    [StructLayout(LayoutKind.Explicit, Size = 0x48)]
+    public unsafe struct GCSquadronMemberStruct
+    {
+        [FieldOffset(0x00)] public fixed byte Name[32];
+        [FieldOffset(0x28)] public int Level;
+        [FieldOffset(0x2C)] public byte ClassId;
+    }
+
+    public class KaySquadronWindow : Window
+    {
+        private List<SquadronMission> _missions;
+        private List<SquadronMember> _members;
+        private SquadronMission? _selectedMission;
+        private List<OptimizationResult> _results = new();
+        private Optimizer _optimizer = new();
+
+        private static void AddDebug(string msg)
+        {
+            Plugin.Log.Info(msg);
+        }
+
+        public KaySquadronWindow() : base(Loc.T("PluginName"))
+        {
+            Size = new Vector2(600, 600);
+            SizeCondition = ImGuiCond.FirstUseEver;
+            
+            _missions = SquadronData.GetMissions();
+            _members = new List<SquadronMember>();
+            
+            // Default members for testing
+            for (int i = 0; i < 8; i++)
+            {
+                _members.Add(new SquadronMember 
+                { 
+                    Name = $"Recrue {i+1}", 
+                    Level = 50, 
+                    ClassId = (int)SquadronData.SquadronClass.Marauder,
+                    ClassName = "Maraudeur",
+                    BaseAttributes = SquadronData.GetBaseStats(SquadronData.SquadronClass.Marauder, 50)
+                });
+            }
+            AddDebug(Loc.T("ErrInit"));
+        }
+
+        private void PushKayTheme()
+        {
+            ImGui.PushStyleColor(ImGuiCol.WindowBg, ImGui.ColorConvertFloat4ToU32(new Vector4(0.08f, 0.08f, 0.1f, 0.95f))); // Dark glass
+            ImGui.PushStyleColor(ImGuiCol.TitleBg, ImGui.ColorConvertFloat4ToU32(new Vector4(0.06f, 0.06f, 0.08f, 1.0f)));
+            ImGui.PushStyleColor(ImGuiCol.TitleBgActive, ImGui.ColorConvertFloat4ToU32(new Vector4(0.01f, 0.15f, 0.18f, 1.0f))); // Subtle cyan tint
+            
+            ImGui.PushStyleColor(ImGuiCol.Button, ImGui.ColorConvertFloat4ToU32(new Vector4(0.15f, 0.15f, 0.18f, 1.0f)));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ImGui.ColorConvertFloat4ToU32(new Vector4(0.01f, 0.7f, 0.75f, 1.0f))); // Kay Cyan Hover
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, ImGui.ColorConvertFloat4ToU32(new Vector4(0.01f, 0.95f, 1.0f, 1.0f))); // Kay Cyan Logo Exact
+            
+            ImGui.PushStyleColor(ImGuiCol.Header, ImGui.ColorConvertFloat4ToU32(new Vector4(0.01f, 0.3f, 0.35f, 1.0f)));
+            ImGui.PushStyleColor(ImGuiCol.HeaderHovered, ImGui.ColorConvertFloat4ToU32(new Vector4(0.01f, 0.6f, 0.65f, 1.0f)));
+            ImGui.PushStyleColor(ImGuiCol.HeaderActive, ImGui.ColorConvertFloat4ToU32(new Vector4(0.01f, 0.95f, 1.0f, 1.0f)));
+            
+            ImGui.PushStyleColor(ImGuiCol.FrameBg, ImGui.ColorConvertFloat4ToU32(new Vector4(0.15f, 0.15f, 0.16f, 1.0f)));
+            ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ImGui.ColorConvertFloat4ToU32(new Vector4(0.2f, 0.2f, 0.21f, 1.0f)));
+            ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ImGui.ColorConvertFloat4ToU32(new Vector4(0.25f, 0.25f, 0.26f, 1.0f)));
+
+            ImGui.PushStyleColor(ImGuiCol.CheckMark, ImGui.ColorConvertFloat4ToU32(new Vector4(0.01f, 0.95f, 1.0f, 1.0f)));
+            ImGui.PushStyleColor(ImGuiCol.SliderGrab, ImGui.ColorConvertFloat4ToU32(new Vector4(0.01f, 0.7f, 0.75f, 1.0f)));
+            ImGui.PushStyleColor(ImGuiCol.SliderGrabActive, ImGui.ColorConvertFloat4ToU32(new Vector4(0.01f, 0.95f, 1.0f, 1.0f)));
+            
+            ImGui.PushStyleColor(ImGuiCol.Tab, ImGui.ColorConvertFloat4ToU32(new Vector4(0.12f, 0.12f, 0.14f, 1.0f)));
+            ImGui.PushStyleColor(ImGuiCol.TabHovered, ImGui.ColorConvertFloat4ToU32(new Vector4(0.01f, 0.6f, 0.65f, 1.0f)));
+            ImGui.PushStyleColor(ImGuiCol.TabActive, ImGui.ColorConvertFloat4ToU32(new Vector4(0.01f, 0.5f, 0.55f, 1.0f)));
+            
+            // TabUnfocused and TabUnfocusedActive are not in this Dalamud ImGui version enum, ignoring them to fix build
+            
+            ImGui.PushStyleColor(ImGuiCol.Separator, ImGui.ColorConvertFloat4ToU32(new Vector4(0.3f, 0.3f, 0.3f, 0.5f)));
+
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 8f);
+            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 4f);
+            ImGui.PushStyleVar(ImGuiStyleVar.PopupRounding, 4f);
+            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(8, 8));
+            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(8, 6));
+        }
+
+        private void PopKayTheme()
+        {
+            ImGui.PopStyleColor(19);
+            ImGui.PopStyleVar(5);
+        }
+
+        public override void Draw()
+        {
+            PushKayTheme();
+            if (ImGui.BeginTabBar("SquadronTabs"))
+            {
+                if (ImGui.BeginTabItem(Loc.T("OptimizationTab")))
+                {
+                    DrawOptimizationTab();
+                    ImGui.EndTabItem();
+                }
+                if (ImGui.BeginTabItem(Loc.T("MembersTab")))
+                {
+                    DrawMembersTab();
+                    ImGui.EndTabItem();
+                }
+                ImGui.EndTabBar();
+            }
+            
+            PopKayTheme();
+        }
+
+
+
+        private void DrawOptimizationTab()
+        {
+            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), "Sélectionnez votre mission cible et le calculateur trouvera");
+            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), "exactement comment répartir l'entraînement pour 100% de réussite.");
+            ImGui.Spacing();
+            
+            ImGui.TextColored(new Vector4(0.01f, 0.95f, 1f, 1f), Loc.T("SelectMission"));
+            
+            ImGui.SetNextItemWidth(-1);
+            if (ImGui.BeginCombo("##MissionCombo", _selectedMission?.Name ?? Loc.T("CurrentMissionPlaceholder")))
+            {
+                foreach (var mission in _missions)
+                {
+                    if (ImGui.Selectable($"{mission.Name}##{mission.Id}", _selectedMission?.Id == mission.Id))
+                    {
+                        _selectedMission = mission;
+                    }
+                }
+                ImGui.EndCombo();
+            }
+
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            if (ImGui.Button(Loc.T("OptimizeBtn"), new Vector2(ImGui.GetContentRegionAvail().X / 2 - 4, 40)) && _selectedMission != null)
+            {
+                _results = _optimizer.Optimize(_members, _selectedMission);
+            }
+            ImGui.SameLine();
+            if (ImGui.Button(Loc.T("ResetBtn"), new Vector2(ImGui.GetContentRegionAvail().X, 40)))
+            {
+                _results.Clear();
+                _selectedMission = null;
+            }
+
+            if (_results.Any() && _selectedMission != null)
+            {
+                ImGui.Spacing();
+                ImGui.TextColored(new Vector4(0.4f, 1f, 0.4f, 1f), Loc.T("BestMatches"));
+
+                foreach (var res in _results)
+                {
+                    bool isPerfect = res.RequirementsMet == 3;
+                    Vector4 headerColor = isPerfect ? new Vector4(0.01f, 0.95f, 1f, 1f) : new Vector4(0.8f, 0.8f, 0.2f, 1f);
+                    
+                    ImGui.PushStyleColor(ImGuiCol.Text, ImGui.ColorConvertFloat4ToU32(headerColor));
+                    bool expanded = ImGui.CollapsingHeader($"{Loc.T("SuccessRatio", res.RequirementsMet, string.Join(", ", res.Team.Select(m => m.Name.Split(' ')[0])))}##{res.GetHashCode()}");
+                    ImGui.PopStyleColor();
+                    
+                    if (expanded)
+                    {
+                        ImGui.Indent();
+                        
+                        ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), Loc.T("BoardTrainingLabel"));
+                        ImGui.TextColored(new Vector4(1f, 1f, 1f, 1f), $" 💪 {Loc.T("Physical")} : {res.BestTraining.Physical}");
+                        ImGui.SameLine(150);
+                        ImGui.TextColored(new Vector4(1f, 1f, 1f, 1f), $" 🧠 {Loc.T("Mental")} : {res.BestTraining.Mental}");
+                        ImGui.SameLine(300);
+                        ImGui.TextColored(new Vector4(1f, 1f, 1f, 1f), $" 🎯 {Loc.T("Tactical")} : {res.BestTraining.Tactical}");
+
+                        ImGui.Spacing();
+                        
+                        // Compare final stats to required stats
+                        ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), Loc.T("StatsFinalVsRequired"));
+                        
+                        DrawStatComparison(Loc.T("Physical"), res.FinalStats.Physical, _selectedMission.RequiredAttributes.Physical, new Vector4(0.01f, 0.95f, 1f, 1f));
+                        DrawStatComparison(Loc.T("Mental"), res.FinalStats.Mental, _selectedMission.RequiredAttributes.Mental, new Vector4(0.1f, 0.7f, 0.9f, 1f));
+                        DrawStatComparison(Loc.T("Tactical"), res.FinalStats.Tactical, _selectedMission.RequiredAttributes.Tactical, new Vector4(0.3f, 1f, 0.8f, 1f));
+
+                        ImGui.Unindent();
+                        ImGui.Spacing();
+                    }
+                }
+            }
+        }
+
+        private void DrawStatComparison(string label, int actual, int required, Vector4 color)
+        {
+            float ratio = required > 0 ? (float)Math.Min(actual, required) / required : 1f;
+            ImGui.Text($"{label, -10}: {actual}/{required}");
+            ImGui.SameLine(180);
+            
+            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, ImGui.ColorConvertFloat4ToU32(color));
+            ImGui.PushStyleColor(ImGuiCol.FrameBg, ImGui.ColorConvertFloat4ToU32(new Vector4(0.1f, 0.1f, 0.1f, 1f)));
+            ImGui.ProgressBar(ratio, new Vector2(-1, 14), actual >= required ? Loc.T("OK") : Loc.T("Insufficient"));
+            ImGui.PopStyleColor(2);
+        }
+
+        private void DrawMembersTab()
+        {
+            ImGui.Spacing();
+            
+            // Primary Action Button styling
+            ImGui.PushStyleColor(ImGuiCol.Button, ImGui.ColorConvertFloat4ToU32(new Vector4(0.01f, 0.5f, 0.55f, 1f)));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ImGui.ColorConvertFloat4ToU32(new Vector4(0.01f, 0.7f, 0.75f, 1f)));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, ImGui.ColorConvertFloat4ToU32(new Vector4(0.01f, 0.95f, 1.0f, 1f)));
+            if (ImGui.Button(Loc.T("ImportGameBtn"), new Vector2(-1, 40)))
+            {
+                ImportFromGame();
+            }
+            ImGui.PopStyleColor(3);
+            
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            ImGui.BeginChild("MembersList", new Vector2(-1, -1), false);
+            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), Loc.T("ManageMembersLabel"));
+            ImGui.Spacing();
+            
+            for (int i = 0; i < _members.Count; i++)
+            {
+                var m = _members[i];
+                ImGui.PushID(i);
+                
+                ImGui.BeginGroup();
+                
+                ImGui.SetNextItemWidth(140);
+                string name = m.Name;
+                if (ImGui.InputText("##Name", ref name, 32)) m.Name = name;
+                
+                ImGui.SameLine();
+                ImGui.SetNextItemWidth(70);
+                int level = m.Level;
+                if (ImGui.InputInt("##Niv", ref level, 0, 0)) m.Level = Math.Clamp(level, 1, 60);
+                
+                ImGui.SameLine();
+                ImGui.SetNextItemWidth(140);
+                if (ImGui.BeginCombo("##Class", m.ClassName))
+                {
+                    foreach (SquadronData.SquadronClass job in Enum.GetValues(typeof(SquadronData.SquadronClass)))
+                    {
+                        if (ImGui.Selectable(job.ToString(), m.ClassId == (int)job))
+                        {
+                            m.ClassId = (int)job;
+                            m.ClassName = job.ToString();
+                        }
+                    }
+                    ImGui.EndCombo();
+                }
+
+                ImGui.EndGroup();
+                ImGui.Spacing();
+
+                // Update attributes if level or class changed
+                m.BaseAttributes = SquadronData.GetBaseStats((SquadronData.SquadronClass)m.ClassId, m.Level);
+                ImGui.PopID();
+            }
+            ImGui.EndChild();
+        }
+
+        private unsafe void ImportFromGame()
+        {
+            AddDebug("Début de l'auto-importation via GcArmyManager...");
+            
+            try 
+            {
+                var manager = FFXIVClientStructs.FFXIV.Client.Game.GcArmyManager.Instance();
+                if (manager == null || manager->Data == null)
+                {
+                    AddDebug("Erreur : GcArmyManager ou Data est null. (Êtes-vous dans la caserne ?)");
+                    return;
+                }
+                
+                var members = manager->Data->Members;
+                
+                // Sheets for real names
+                var gcSheet = Plugin.Data.GetExcelSheet<Lumina.Excel.Sheets.GcArmyMember>();
+                var enpcSheet = Plugin.Data.GetExcelSheet<Lumina.Excel.Sheets.ENpcResident>();
+                
+                _members.Clear();
+                
+                for (int i = 0; i < 8; i++)
+                {
+                    var m = members[i];
+                    byte* mPtr = (byte*)&m;
+                    
+                    uint baseId = *(uint*)mPtr;      // Offset 0x00: BaseId
+                    byte classId = *(mPtr + 0x0A);   // Offset 0x0A: ClassJob
+                    byte level = *(mPtr + 0x0B);     // Offset 0x0B: Level
+                    
+                    if (baseId == 0) continue; // Empty slot
+                    
+                    string name = $"Recrue {i+1}";
+                    try 
+                    {
+                        if (gcSheet != null && enpcSheet != null) 
+                        {
+                            var gcRow = gcSheet.GetRowOrDefault(baseId);
+                            if (gcRow.HasValue) 
+                            {
+                                // In Lumina 1.x / Dalamud 9+, accessing the reference directly:
+                                // usually GcArmyMember has a single ENpcResident reference Column 0
+                                uint enpcId = gcRow.Value.RowId; // Fallback
+                                
+                                // Through reflection to safely grab the ENpcResident column value if properties changed
+                                var val = gcRow.Value.GetType().GetProperty("ENpcResident")?.GetValue(gcRow.Value);
+                                if (val != null)
+                                {
+                                    // Usually it's a LazyRow or uint depending on Lumina version
+                                    dynamic lazyVal = val;
+                                    try { enpcId = (uint)lazyVal.RowId; } catch { 
+                                        try { enpcId = (uint)lazyVal.Value.RowId; } catch { }
+                                    }
+                                }
+
+                                var npc = enpcSheet.GetRowOrDefault(enpcId);
+                                if (npc.HasValue && !string.IsNullOrEmpty(npc.Value.Singular.ToString()))
+                                {
+                                    name = npc.Value.Singular.ToString();
+                                }
+                                else 
+                                {
+                                    // Let's hardcode the +1016923 logic as an ultimate fallback if reflection fails
+                                    // Cecily = ID:3 -> 1016926. So ENpcResidentID = BaseID + 1016923
+                                    var hardNpc = enpcSheet.GetRowOrDefault(baseId + 1016923);
+                                    if (hardNpc.HasValue && !string.IsNullOrEmpty(hardNpc.Value.Singular.ToString()))
+                                    {
+                                        name = hardNpc.Value.Singular.ToString();
+                                    }
+                                }
+                            }
+                        }
+                    } 
+                    catch { /* Fallback to default name if sheet fails */ }
+                    
+                    var job = (SquadronData.SquadronClass)classId;
+                    
+                    _members.Add(new SquadronMember
+                    {
+                        Name = name,
+                        Level = level,
+                        ClassId = classId,
+                        ClassName = job.ToString(),
+                        BaseAttributes = SquadronData.GetBaseStats(job, level)
+                    });
+                    
+                    AddDebug($"Importé: {name} (Niv {level}, {job.ToString()})");
+                }
+                AddDebug($"Import terminé. {_members.Count} recrues trouvées !");
+            }
+            catch (Exception ex)
+            {
+                AddDebug($"Erreur GcArmyManager : {ex.Message}");
+            }
+        }
+
+        private unsafe void ImportFromAgent()
+        {
+            var agent = (byte*)FFXIVClientStructs.FFXIV.Client.UI.Agent.AgentModule.Instance()->GetAgentByInternalId((AgentId)165);
+            if (agent == null)
+            {
+                AddDebug("Erreur : Impossible de trouver l'Agent 165.");
+                return;
+            }
+            AddDebug($"Agent 165 trouvé à : 0x{(nint)agent:X}");
+
+            int memberCount = *(int*)(agent + 0x20);
+            AddDebug($"Agent 165 MemberCount à 0x20 : {memberCount}");
+
+            if (memberCount <= 0 || memberCount > 8)
+            {
+                memberCount = *(int*)(agent + 0x18);
+                AddDebug($"Agent 165 MemberCount à 0x18 : {memberCount}");
+            }
+
+            if (memberCount <= 0 || memberCount > 8)
+            {
+                AddDebug("Erreur : Nombre de membres invalide dans l'agent.");
+                return;
+            }
+
+            var membersPtr = *(GCSquadronMemberStruct**)(agent + 0x28);
+            if (membersPtr == null)
+            {
+                membersPtr = *(GCSquadronMemberStruct**)(agent + 0x20);
+                AddDebug("Utilisation du pointeur à 0x20");
+            }
+            
+            if (membersPtr == null)
+            {
+                AddDebug("Erreur : Pointeur de tableau de membres nul.");
+                return;
+            }
+
+            _members.Clear();
+            for (int i = 0; i < memberCount; i++)
+            {
+                var m = membersPtr[i];
+                string name = Marshal.PtrToStringUTF8((IntPtr)m.Name) ?? $"Recrue {i + 1}";
+                var job = (SquadronData.SquadronClass)m.ClassId;
+                _members.Add(new SquadronMember
+                {
+                    Name = name,
+                    Level = m.Level,
+                    ClassId = m.ClassId,
+                    ClassName = job.ToString(),
+                    BaseAttributes = SquadronData.GetBaseStats(job, m.Level)
+                });
+                AddDebug($"Membre {i} via Agent : {name}");
+            }
+        }
+    }
+}

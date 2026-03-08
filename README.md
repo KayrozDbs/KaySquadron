@@ -1,5 +1,9 @@
 # KaySquadron
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/KayrozDbs/KaySquadron/main/kaysquadron.png" width="600" alt="KaySquadron Preview" />
+</p>
+
 [English](#english) | [Français](#fran%C3%A7ais)
 
 ---

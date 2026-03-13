@@ -29,11 +29,11 @@ namespace KaySquadron
             this.Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             this.Configuration.Initialize(PluginInterface);
 
+            Loc.Initialize(ClientState.ClientLanguage);
+
             this.WindowSystem = new WindowSystem("KaySquadron");
             this.MainWindow = new KaySquadronWindow();
             this.WindowSystem.AddWindow(this.MainWindow);
-
-            Loc.Initialize(ClientState.ClientLanguage);
 
             CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
             {

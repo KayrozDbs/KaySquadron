@@ -19,15 +19,18 @@ namespace KaySquadron
 
         public static Attributes GetBaseStats(SquadronClass job, int level)
         {
-            // Approximate formula: 100 base + 5 per level
-            int total = 100 + (level * 5);
+            // Derived from screenshots: 
+            // Level 49 total = 192, Level 38 total = 170.
+            // Growth = 2 points per level. Base at level 1 = 96.
+            int total = 96 + (level - 1) * 2;
             
             return job switch
             {
-                SquadronClass.Gladiator or SquadronClass.Marauder => new Attributes((int)(total * 0.6), (int)(total * 0.15), (int)(total * 0.25)),
-                SquadronClass.Conjurer => new Attributes((int)(total * 0.15), (int)(total * 0.65), (int)(total * 0.2)),
-                SquadronClass.Archer or SquadronClass.Rogue or SquadronClass.Lancer => new Attributes((int)(total * 0.2), (int)(total * 0.2), (int)(total * 0.6)),
-                SquadronClass.Thaumaturge or SquadronClass.Arcanist or SquadronClass.Pugilist => new Attributes((int)(total * 0.25), (int)(total * 0.4), (int)(total * 0.35)),
+                SquadronClass.Gladiator or SquadronClass.Marauder => new Attributes((int)(total * 0.60), (int)(total * 0.15), (int)(total * 0.25)),
+                SquadronClass.Conjurer => new Attributes((int)(total * 0.15), (int)(total * 0.66), (int)(total * 0.19)),
+                SquadronClass.Archer or SquadronClass.Rogue or SquadronClass.Lancer => new Attributes((int)(total * 0.23), (int)(total * 0.15), (int)(total * 0.62)),
+                SquadronClass.Thaumaturge or SquadronClass.Arcanist => new Attributes((int)(total * 0.15), (int)(total * 0.57), (int)(total * 0.28)),
+                SquadronClass.Pugilist => new Attributes((int)(total * 0.50), (int)(total * 0.20), (int)(total * 0.30)),
                 _ => new Attributes(total / 3, total / 3, total / 3)
             };
         }

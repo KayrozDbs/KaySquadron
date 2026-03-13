@@ -31,6 +31,7 @@ namespace KaySquadron
         private SquadronMission? _selectedMission;
         private List<OptimizationResult> _results = new();
         private Optimizer _optimizer = new();
+        private Attributes _currentTraining = new(0, 0, 0);
 
         private static void AddDebug(string msg)
         {

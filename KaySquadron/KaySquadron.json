@@ -1,8 +1,8 @@
 {
-    "Author": "Kaynoss",
+    "Author": "Kay",
     "Name": "KaySquadron",
     "InternalName": "KaySquadron",
-    "AssemblyVersion": "1.0.2.0",
+    "AssemblyVersion": "1.0.3",
     "Description": "Grand Company (GC) Squadron Optimizer. Calculates attributes, success chances, and training recommendations for your barracks.",
     "ApplicableRegions": [
         "CN",
@@ -19,6 +19,9 @@
     "LoadSync": false,
     "CanUnloadAsync": false,
     "SupportsConfig": true,
-    "IconUrl": "https://raw.githubusercontent.com/Kaynoss/KaySquadron/main/icon.png",
+    "IconUrl": "https://raw.githubusercontent.com/KayrozDbs/KaySquadron/main/KaySquadron/images/icon.png?v=1",
+    "ImageUrls": [
+        "https://raw.githubusercontent.com/KayrozDbs/KaySquadron/main/KaySquadron/images/icon.png?v=1"
+    ],
     "Punchline": "Turn your recruits into an elite unit."
 }

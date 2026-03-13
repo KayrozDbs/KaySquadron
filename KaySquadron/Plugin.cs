@@ -26,22 +26,26 @@ namespace KaySquadron
 
         public Plugin()
         {
-            this.Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-            this.Configuration.Initialize(PluginInterface);
+            try {
+                this.Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+                this.Configuration.Initialize(PluginInterface);
 
-            Loc.Initialize(ClientState.ClientLanguage);
+                Loc.Initialize(ClientState.ClientLanguage);
 
-            this.WindowSystem = new WindowSystem("KaySquadron");
-            this.MainWindow = new KaySquadronWindow();
-            this.WindowSystem.AddWindow(this.MainWindow);
+                this.WindowSystem = new WindowSystem("KaySquadron");
+                this.MainWindow = new KaySquadronWindow();
+                this.WindowSystem.AddWindow(this.MainWindow);
 
-            CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
-            {
-                HelpMessage = "Ouvrir l'optimiseur d'escouade KaySquadron."
-            });
+                CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
+                {
+                    HelpMessage = "Open UI KaySquadron."
+                });
 
-            PluginInterface.UiBuilder.Draw += DrawUI;
-            PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
+                PluginInterface.UiBuilder.Draw += DrawUI;
+                PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
+            } catch (System.Exception ex) {
+                Log.Error($"Failed to initialize: {ex}");
+            }
         }
 
         public void Dispose()

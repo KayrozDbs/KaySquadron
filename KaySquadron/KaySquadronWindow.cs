@@ -33,7 +33,7 @@ namespace KaySquadron
         private Optimizer _optimizer = new();
         private Attributes _currentTraining = new(0, 0, 0);
 
-        private static void AddDebug(string msg)
+        private void AddDebug(string msg)
         {
             Plugin.Log.Info(msg);
         }
@@ -127,10 +127,12 @@ namespace KaySquadron
 
 
 
+
         private void DrawOptimizationTab()
         {
             ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), "Sélectionnez votre mission cible et le calculateur trouvera");
             ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), "exactement comment répartir l'entraînement pour 100% de réussite.");
+            ImGui.TextColored(new Vector4(0.5f, 0.8f, 0.5f, 1f), $"Entraînement actuel : 💪 {_currentTraining.Physical}  🧠 {_currentTraining.Mental}  🎯 {_currentTraining.Tactical}");
             ImGui.Spacing();
             
             ImGui.TextColored(new Vector4(0.01f, 0.95f, 1f, 1f), Loc.T("SelectMission"));
@@ -294,6 +296,14 @@ namespace KaySquadron
                 
                 var members = manager->Data->Members;
                 
+                // Read current training
+                _currentTraining = new Attributes(
+                    manager->Data->BonusPhysical,
+                    manager->Data->BonusMental,
+                    manager->Data->BonusTactical
+                );
+                AddDebug($"Entraînement lu : {_currentTraining.Physical}/{_currentTraining.Mental}/{_currentTraining.Tactical}");
+
                 // Sheets for real names
                 var gcSheet = Plugin.Data.GetExcelSheet<Lumina.Excel.Sheets.GcArmyMember>();
                 var enpcSheet = Plugin.Data.GetExcelSheet<Lumina.Excel.Sheets.ENpcResident>();
@@ -430,5 +440,6 @@ namespace KaySquadron
                 AddDebug($"Membre {i} via Agent : {name}");
             }
         }
+
     }
 }

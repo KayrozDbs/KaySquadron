@@ -68,9 +68,9 @@ namespace KaySquadron
                             Name = $"[Niv. {row.RequiredLevel}] {name}",
                             LevelRequirement = (int)row.RequiredLevel, 
                             RequiredAttributes = new Attributes(
-                                row.ExpeditionParams[0].RequiredPhysical, 
-                                row.ExpeditionParams[0].RequiredMental, 
-                                row.ExpeditionParams[0].RequiredTactical)
+                                row.ExpeditionParams[5].RequiredPhysical, 
+                                row.ExpeditionParams[5].RequiredMental, 
+                                row.ExpeditionParams[5].RequiredTactical)
                         });
                     }
                 }
